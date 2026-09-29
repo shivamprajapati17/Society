@@ -47,7 +47,7 @@ function readView(): View {
     : "home";
 }
 
-export default function Landing() {
+export default function Landing({ modelLabel }: { modelLabel: string }) {
   const [view, setView] = useState<View>("home");
   const [sheetOpen, setSheetOpen] = useState(false);
   const [message, setMessage] = useState("");
@@ -200,7 +200,7 @@ export default function Landing() {
               <span className="chip">Hindi + English</span>
             </div>
             <div className="composer-foot">
-              <span className="model-tag">Claude Haiku</span>
+              <span className="model-tag">{modelLabel}</span>
               <Link className="btn-primary btn-sm" href="/login">
                 Sort it
               </Link>
