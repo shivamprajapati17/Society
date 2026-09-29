@@ -1,12 +1,15 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import HeroBackdrop from "@/components/HeroBackdrop";
+import LotusMark from "@/components/LotusMark";
 import MagicLinkForm from "@/components/MagicLinkForm";
-import ShaderBackground from "@/components/ShaderBackground";
 import { isSupabaseConfigured } from "@/lib/env";
+import { heroAssets } from "@/lib/hero";
+import { society } from "@/lib/society.config";
 
 export const metadata: Metadata = {
-  title: "Sign in — SocietyDesk",
+  title: `Sign in — ${society.name}`,
 };
 
 const ERRORS: Record<string, string> = {
@@ -30,24 +33,24 @@ export default async function LoginPage({
   const errorKey = params.error;
   const errorText = errorKey ? (ERRORS[errorKey] ?? "Something went wrong.") : null;
   const configured = isSupabaseConfigured();
+  const { image } = heroAssets();
 
   return (
-    <div className="stage">
-      <ShaderBackground variant="home" />
+    <div className="auth-stage">
+      <HeroBackdrop image={image} alt={society.hero.imageAlt} blurred />
 
-      <main className="center-screen">
-        <div className="glass card anim-focus" style={{ width: "min(440px, 100%)", padding: 24 }}>
-          <div className="row" style={{ marginBottom: 18 }}>
-            <Link className="brand" href="/">
-              <span className="brand-mark" aria-hidden="true">
-                S
-              </span>
-              SocietyDesk
-            </Link>
-          </div>
+      <main className="auth-main">
+        <div className="glass auth-card anim-focus">
+          <Link className="auth-brand" href="/">
+            <LotusMark size={40} />
+            <span className="site-brand-text">
+              <span className="site-brand-name">{society.nameCaps}</span>
+              <span className="site-brand-sub">{society.tagline}</span>
+            </span>
+          </Link>
 
           {errorText ? (
-            <p className="banner banner-error" role="alert" style={{ marginBottom: 14 }}>
+            <p className="banner banner-error" role="alert">
               {errorText}
             </p>
           ) : null}
@@ -65,12 +68,15 @@ export default async function LoginPage({
                 sign-in is disabled.
               </p>
               <p className="banner">
-                The Supabase environment variables are missing. Add them in
-                Vercel → Settings → Environment Variables, then redeploy. See
-                the README for the one-time database setup.
+                Add them in Vercel → Settings → Environment Variables, then
+                redeploy. The README covers the one-time database setup.
               </p>
             </div>
           )}
+
+          <Link className="auth-back" href="/">
+            ← Back to the website
+          </Link>
         </div>
       </main>
     </div>

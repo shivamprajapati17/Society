@@ -1,14 +1,17 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import HeroBackdrop from "@/components/HeroBackdrop";
+import LotusMark from "@/components/LotusMark";
 import MagicLinkForm from "@/components/MagicLinkForm";
-import ShaderBackground from "@/components/ShaderBackground";
 import { isAdminConfigured } from "@/lib/env";
+import { heroAssets } from "@/lib/hero";
+import { society } from "@/lib/society.config";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ROLE_LABELS, type Role } from "@/lib/types";
 
 export const metadata: Metadata = {
-  title: "Join your society — SocietyDesk",
+  title: `Join your society — ${society.name}`,
 };
 
 // Tokens are validated per request, never pre-rendered at build time.
@@ -42,6 +45,7 @@ export default async function InvitePage({
   params: Promise<{ token: string }>;
 }) {
   const { token } = await params;
+  const { image } = heroAssets();
 
   let invite: InviteLookup | null = null;
 
@@ -64,19 +68,18 @@ export default async function InvitePage({
   }
 
   return (
-    <div className="stage">
-      <ShaderBackground variant="home" />
+    <div className="auth-stage">
+      <HeroBackdrop image={image} alt={society.hero.imageAlt} blurred />
 
-      <main className="center-screen">
-        <div className="glass card anim-focus" style={{ width: "min(460px, 100%)", padding: 24 }}>
-          <div className="row" style={{ marginBottom: 18 }}>
-            <Link className="brand" href="/">
-              <span className="brand-mark" aria-hidden="true">
-                S
-              </span>
-              SocietyDesk
-            </Link>
-          </div>
+      <main className="auth-main">
+        <div className="glass auth-card anim-focus">
+          <Link className="auth-brand" href="/">
+            <LotusMark size={40} />
+            <span className="site-brand-text">
+              <span className="site-brand-name">{society.nameCaps}</span>
+              <span className="site-brand-sub">{society.tagline}</span>
+            </span>
+          </Link>
 
           {invite ? (
             <MagicLinkForm

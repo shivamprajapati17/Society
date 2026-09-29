@@ -42,11 +42,12 @@ The full specification lives in the numbered markdown files at the repo root:
 
 - **Next.js 15** (App Router) + **TypeScript** (strict, no `any`)
 - **Supabase** — Postgres, Auth, Row Level Security
-- **NVIDIA NIM** (`moonshotai/kimi-k3`, OpenAI-compatible chat completions) with a forced tool call for structured triage output. No Anthropic dependency.
+- **NVIDIA NIM** (`moonshotai/kimi-k3`, OpenAI-compatible chat completions) with a forced tool call for structured triage output. The only AI dependency; no Anthropic, and `three.js` is gone with the old shader landing.
 - **zod** for every request body and query param
-- **three.js** for the procedural landing-page shader
+- **lucide-react** for the public site's icons
 - **Resend** for the optional digest email
 - Plain global CSS with design tokens (no Tailwind)
+- **next/font** for Inter, Cormorant Garamond and Noto Sans Devanagari
 - **Vitest** for unit tests
 
 Node **≥ 22.12** is required.
@@ -66,17 +67,26 @@ The implementation departs from them in four places, deliberately:
 2. **Auto-close schedule.** `02-TRD.md` asks for `0 * * * *` (hourly). Vercel's
    Hobby plan rejects any cron that runs more than once a day, which failed the
    build, so it runs daily at 08:30 IST. Change `vercel.json` back on Pro.
-3. **The Fastshot source document was not supplied.** `03-UI-UX.md` says to copy
-   tokens, shaders and motion from it verbatim. Absent that file, the design
-   system in `app/globals.css` and the procedural shader in
-   `components/ShaderBackground.tsx` were rebuilt to match the tokens, surface
-   treatments and motion names the document does describe, rather than
-   transcribed. Treat them as an implementation of the described look, not a
-   pixel-exact port.
-4. **Fonts** are the latin subsets of Inter and Pixelify Sans, fetched from
-   Google Fonts and self-hosted in `public/media` (the `assets.json` script
-   referenced by `03-UI-UX.md` was not available). Hashes and licences are
-   recorded in `public/media/LICENSES.txt`.
+3. **`09-WEBSITE-TEMPLATE-PROMPT.md` supersedes the landing and login visuals.**
+   `03-UI-UX.md` describes the Fastshot shader look; `09` replaces it with the
+   Suryanagari design (maroon/gold/saffron on dark brown, hero photo, glass
+   cards). The Fastshot shader and `three.js` are gone. Everything in `01`–`08`
+   other than the landing/login visuals still applies, and the dashboard reuses
+   the `09` tokens on a flat `--ink` background.
+4. **Fonts** come from `next/font/google` (Inter, Cormorant Garamond 500/600,
+   Noto Sans Devanagari 800), self-hosted by the build. The earlier
+   `public/media/*.woff2` files remain as a fallback face.
+5. **`09` needs two more tables.** `notices` and `events` are added by
+   `supabase/migrations/003_notices_events.sql`, with public-read RLS policies
+   because the landing page is a public notice board.
+6. **One spec SQL statement had to change.** `05-DB-SCHEMA.md` writes the
+   dedupe index as `... where source_hash is not null`. PostgREST compiles
+   `upsert(..., { onConflict: "society_id,source_hash" })` into
+   `ON CONFLICT (society_id, source_hash)`, and Postgres will not infer a
+   *partial* index unless the predicate is repeated — so every chat import
+   failed with `42P10`. `002_dedupe_index.sql` recreates the index without the
+   predicate; Postgres already treats NULLs as distinct, so rows with no hash
+   still never collide.
 
 ---
 
@@ -120,10 +130,32 @@ supabase link --project-ref <your-project-ref>
 supabase db push          # applies supabase/migrations/*.sql
 ```
 
-`supabase start` also gives you a full local stack (Postgres, Auth, Studio) with
-`supabase/migrations` and `supabase/seed.sql` applied automatically — set
-`NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321` and put the local `anon` key it
-prints into `.env.local` to develop entirely offline.
+**Option C — the whole stack on your machine, no cloud at all.** Requires Docker.
+
+```bash
+npm run local:setup    # supabase start + db reset + writes .env.local
+npm run dev            # http://localhost:3000
+```
+
+`local:setup` runs three things: `supabase start`, `supabase db reset --local`
+(applies `001`–`003` and `supabase/seed.local.sql`), and
+`npm run local:env`, which reads the running stack with `supabase status -o env`
+and writes `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` /
+`SUPABASE_SERVICE_ROLE_KEY` into `.env.local`. Any other value already in
+`.env.local` (a real `NVIDIA_API_KEY`, say) is preserved.
+
+You get a society called *My Society* and a ready admin invite for
+**admin@local.test**. Sign in with that address on `/login`; the magic link is
+not emailed anywhere — read it at **http://127.0.0.1:54324** (Mailpit).
+Without an `NVIDIA_API_KEY`, triage falls back to the keyword rules, so nothing
+in the app needs a cloud account to run.
+
+| Command | What it does |
+|---|---|
+| `npm run supabase:start` | Boot the local stack (`supabase start`) |
+| `npm run supabase:stop` | Shut it down |
+| `npm run supabase:reset` | Re-apply migrations and the local seed |
+| `npm run local:env` | Rewrite `.env.local` from the running stack |
 
 ### 4. Create the first admin
 
@@ -214,6 +246,9 @@ Open <http://localhost:3000>. Then:
 | `npm run lint` | ESLint (must be clean) |
 | `npm run typecheck` | `tsc --noEmit` (strict mode) |
 | `npm test` | Run the Vitest suite once |
+| `npm run test:e2e` | Full end-to-end run against a real deployment (needs `SUPABASE_SERVICE_KEY` + `SUPABASE_ANON_KEY`; skipped otherwise) |
+| `npm run check:triage` | Send the 8 sample complaints from `07` to NIM and assert the triage |
+| `npm run local:setup` | Boot a local Supabase stack and point `.env.local` at it |
 
 ---
 
@@ -221,26 +256,75 @@ Open <http://localhost:3000>. Then:
 
 ```
 app/
-  page.tsx                    landing (Home / Features hash views)
+  page.tsx                    public society site (server-rendered)
   login/page.tsx              magic-link sign-in
   invite/[token]/page.tsx     invite acceptance
   auth/callback/route.ts      PKCE exchange + invite consumption
   app/                        authenticated shell (guarded in layout.tsx)
     today/  complaints/  complaints/[id]/  import/  new/  members/  profile-setup/
-  api/                        every endpoint (see 08-API.md)
-components/                   ShaderBackground, ComplaintCard, AppShell, views…
+  api/                        every endpoint (see 08-API.md),
+                              plus /api/public/{notices,events} and
+                              /api/{notices,events} from 09
+components/
+  SiteNav, HeroBackdrop, HeroMediaPill, GalleryGrid, LotusMark, SiteIcon
+  Landing                     the public page
+  AppShell, ComplaintCard, ComplaintDetail, ComplaintsList, ClustersPanel,
+  TodayView, ImportView, MembersView, NewComplaintForm, MagicLinkForm
 lib/
   supabase/{server,browser,admin}.ts
+  society.config.ts  every string on the public site
+  notices.ts         public notices/events reads
+  hero.ts            server-only hero asset probe
   auth.ts        getSessionProfile(), requireRole()
-  triage.ts      Claude call + rule fallback + clustering
+  triage.ts      NIM call + rule fallback + clustering
   parse-chat.ts  WhatsApp / plain-text parser
   sla.ts         SLA windows and countdowns
   schemas.ts     all zod schemas
   http.ts        HttpError, error envelope, CSRF guard, rate limiter
 middleware.ts                 session refresh + /app gate
-supabase/migrations/001_init.sql
-tests/                        vitest suites
+supabase/migrations/001_init.sql, 002_dedupe_index.sql, 003_notices_events.sql
+tests/                        vitest suites (e2e is opt-in)
 ```
+
+---
+
+## The public website (`/`)
+
+The landing page is a Next.js **server component**. It reads the newest notice
+and the next event from the database, counts real profiles for the hero chip,
+and renders a **Open Dashboard** link instead of *Resident Login* once you are
+signed in.
+
+Every word, icon and section comes from [`lib/society.config.ts`](./lib/society.config.ts)
+— nothing is hard-coded in JSX. Values left empty are simply not rendered, so
+the site never states a figure nobody verified:
+
+- `established` / `units` — the About stats, hidden while `null`.
+- `emergencyPhone` — hides the hero's Emergency Contact card and the contact
+  row until you set a real number.
+- `contact.*`, `committee` — sections render an honest empty state until filled.
+- `gallery` — drop files in `public/media/gallery/` and list them here.
+
+Assets: the hero uses `public/media/hero.jpg` when the file exists and a warm
+gradient placeholder when it does not; the media pill only appears if
+`public/media/hero.mp4` exists. Neither is committed, so the page renders
+correctly out of the box.
+
+Notices and events are committee/admin content:
+
+```bash
+# public (no session)
+curl -s $BASE/api/public/notices
+curl -s $BASE/api/public/events
+
+# committee/admin, with a session cookie
+curl -s -X POST $BASE/api/notices -H 'content-type: application/json' \
+  -d '{"title":"Water tank cleaning","body":"Saturday morning","pinned":true}'
+curl -s -X POST $BASE/api/events -H 'content-type: application/json' \
+  -d '{"title":"Ganesh Chaturthi","starts_at":"2026-09-14T14:30:00.000Z","venue":"Club house"}'
+```
+
+PATCH and DELETE work on `/api/notices/<id>` and `/api/events/<id>`.
 
 ---
 
@@ -316,8 +400,21 @@ pre-launch checklist.
 npm run typecheck    # strict TS, no `any`
 npm run lint         # eslint must be clean
 npm test             # 36 unit tests: SLA math, chat parsing, triage rules, schemas
-npm run build        # production build
+npm run build        # production build (also fetches the Google fonts)
 ```
+
+`npm test` runs 36 unit tests and skips the end-to-end file. Run that one
+against a real deployment when you want the full proof:
+
+```bash
+export SUPABASE_SERVICE_KEY=...   # service_role key
+ export SUPABASE_ANON_KEY=...     # anon key
+npm run test:e2e                  # 18 checks: auth, triage, import, clusters,
+                                  # notices/events, RLS
+```
+
+It signs in with a real Supabase session, drives the deployed API, publishes and
+removes a notice and an event, and cleans up everything it created.
 
 Client-bundle secret check (must print nothing):
 
@@ -332,6 +429,8 @@ BASE=https://societymatter.vercel.app
 curl -s -o /dev/null -w "landing   %{http_code}\n" $BASE/
 curl -s -o /dev/null -w "login     %{http_code}\n" $BASE/login
 curl -s -o /dev/null -w "cron 401  %{http_code}\n" $BASE/api/cron/digest
+curl -s $BASE/api/public/notices | head -c 120; echo
+curl -s $BASE/api/public/events  | head -c 120; echo
 curl -sI $BASE/ | grep -i "content-security-policy\|strict-transport"
 ```
 

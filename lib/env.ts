@@ -62,6 +62,14 @@ export function cronSecret(): string | undefined {
   return process.env.CRON_SECRET || undefined;
 }
 
+/**
+ * The single society this deployment serves (single-society MVP). Public site
+ * content — notices and events — is filtered by it.
+ */
+export function societyId(): string {
+  return process.env.SOCIETY_ID || "00000000-0000-0000-0000-000000000001";
+}
+
 /** Canonical public base URL, no trailing slash. */
 export function appUrl(): string {
   const raw =
