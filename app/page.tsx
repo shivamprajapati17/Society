@@ -9,15 +9,23 @@ import { society } from "@/lib/society.config";
 
 export const revalidate = 300;
 
-export const metadata: Metadata = {
-  title: `${society.name} — Residential Society`,
-  description: `${society.subhead}. Notices, events and amenities for the residents of ${society.name}.`,
-  openGraph: {
+/**
+ * The OG image is only advertised when the photo is actually deployed,
+ * otherwise social previews would request a file that 404s.
+ */
+export async function generateMetadata(): Promise<Metadata> {
+  const { image } = heroAssets();
+
+  return {
     title: `${society.name} — Residential Society`,
-    description: society.subhead,
-    images: [{ url: society.hero.image }],
-  },
-};
+    description: `${society.subhead}. Notices, events and amenities for the residents of ${society.name}.`,
+    openGraph: {
+      title: `${society.name} — Residential Society`,
+      description: society.subhead,
+      ...(image ? { images: [{ url: image }] } : {}),
+    },
+  };
+}
 
 /** `moonshotai/kimi-k3` -> `kimi-k3`, so the label never drifts from config. */
 function shortModelName(model: string): string {

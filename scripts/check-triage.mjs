@@ -107,30 +107,63 @@ const EXPECTED = {
   7: { urgency: ["low", "medium"] },
 };
 
+/** Per-call ceiling. NIM latency varies a lot per account. */
+const TIMEOUT_MS = Number(process.env.TRIAGE_TIMEOUT_MS || 60_000);
+/** NIM queues aggressively: firing all eight at once self-inflicts a timeout. */
+const CONCURRENCY = Number(process.env.TRIAGE_CONCURRENCY || 2);
+
+/** Runs `worker` over `items` with a small pool, preserving result order. */
+async function pool(items, limit, worker) {
+  const results = new Array(items.length);
+  let next = 0;
+
+  async function run() {
+    while (next < items.length) {
+      const index = next++;
+      results[index] = await worker(items[index], index);
+    }
+  }
+
+  await Promise.all(
+    Array.from({ length: Math.min(limit, items.length) }, run),
+  );
+  return results;
+}
+
 async function triage(complaint) {
   const started = Date.now();
-  const response = await fetch(`${BASE_URL}/chat/completions`, {
-    method: "POST",
-    signal: AbortSignal.timeout(60_000),
-    headers: {
-      "content-type": "application/json",
-      authorization: `Bearer ${KEY}`,
-    },
-    body: JSON.stringify({
-      model: MODEL,
-      temperature: 0,
-      max_tokens: 500,
-      messages: [
-        { role: "system", content: SYSTEM },
-        {
-          role: "user",
-          content: JSON.stringify({ complaint, open_complaints: [] }),
-        },
-      ],
-      tools: [TOOL],
-      tool_choice: { type: "function", function: { name: "triage" } },
-    }),
-  });
+  let response;
+
+  try {
+    response = await fetch(`${BASE_URL}/chat/completions`, {
+      method: "POST",
+      signal: AbortSignal.timeout(TIMEOUT_MS),
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${KEY}`,
+      },
+      body: JSON.stringify({
+        model: MODEL,
+        temperature: 0,
+        max_tokens: 500,
+        messages: [
+          { role: "system", content: SYSTEM },
+          {
+            role: "user",
+            content: JSON.stringify({ complaint, open_complaints: [] }),
+          },
+        ],
+        tools: [TOOL],
+        tool_choice: { type: "function", function: { name: "triage" } },
+      }),
+    });
+  } catch (error) {
+    // A timeout or a dead socket must be reported, not thrown: one slow sample
+    // should not hide the other seven results.
+    const reason =
+      error instanceof Error ? `${error.name}: ${error.message}` : "request failed";
+    return { ok: false, ms: Date.now() - started, error: reason };
+  }
 
   const ms = Date.now() - started;
   if (!response.ok) {
@@ -170,7 +203,11 @@ function checkExpectation(index, args) {
 
 console.log(`model: ${MODEL}\nendpoint: ${BASE_URL}\n`);
 
-const results = await Promise.all(SAMPLES.map((sample) => triage(sample)));
+console.log(
+  `running ${SAMPLES.length} samples, ${CONCURRENCY} at a time, ${TIMEOUT_MS}ms each\n`,
+);
+
+const results = await pool(SAMPLES, CONCURRENCY, (sample) => triage(sample));
 
 let failures = 0;
 let slowest = 0;

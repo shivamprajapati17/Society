@@ -33,11 +33,6 @@ export const metadata: Metadata = {
   title: `${society.name} — Residential Society`,
   description: `${society.subhead}. Notices, events and amenities for the residents of ${society.name}.`,
   applicationName: society.name,
-  openGraph: {
-    title: `${society.name} — Residential Society`,
-    description: society.subhead,
-    images: [{ url: society.hero.image }],
-  },
   robots: { index: true, follow: true },
 };
 
