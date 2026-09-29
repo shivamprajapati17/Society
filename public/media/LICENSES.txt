@@ -1,0 +1,17 @@
+Self-hosted webfonts
+====================
+
+inter.woff2
+  Family : Inter (variable, weight 100-900, latin subset)
+  Source : Google Fonts (fonts.gstatic.com), fetched 2026-09-29
+  License: SIL Open Font License 1.1
+  SHA256 : 3100e775e8616cd2611beecfa23a4263d7037586789b43f035236a2e6fbd4c62
+
+pixelify-sans.woff2
+  Family : Pixelify Sans (variable, weight 400-700, latin subset)
+  Source : Google Fonts (fonts.gstatic.com), fetched 2026-09-29
+  License: SIL Open Font License 1.1
+  SHA256 : 4a5633a0c9c1b73abd133a56d3716c2d8df2ed03cb987346f72194aeb224f382
+
+three
+  Package: three (npm), MIT License — see node_modules/three/LICENSE
