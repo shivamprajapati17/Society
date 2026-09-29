@@ -6,6 +6,7 @@ import ComplaintCard from "@/components/ComplaintCard";
 import { api, errorMessage } from "@/lib/client";
 import {
   CATEGORIES,
+  CATEGORY_ICONS,
   CATEGORY_LABELS,
   STATUSES,
   STATUS_LABELS,
@@ -28,6 +29,16 @@ interface ListResponse {
   next_cursor: string | null;
 }
 
+/** An open duplicate group, as returned by `/api/clusters`. */
+interface GroupOption {
+  id: string;
+  title: string;
+  category: Category;
+  urgency: Urgency;
+  count: number;
+  open_count: number;
+}
+
 export default function ComplaintsList({ role, viewerId }: Props) {
   const [items, setItems] = useState<ComplaintView[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
@@ -41,6 +52,10 @@ export default function ComplaintsList({ role, viewerId }: Props) {
   const [mine, setMine] = useState(false);
   const [search, setSearch] = useState("");
   const [appliedSearch, setAppliedSearch] = useState("");
+  const [clusterId, setClusterId] = useState("");
+  const [groups, setGroups] = useState<GroupOption[]>([]);
+
+  const isStaff = role !== "resident";
 
   const buildQuery = useCallback(
     (nextCursor: string | null) => {
@@ -49,12 +64,24 @@ export default function ComplaintsList({ role, viewerId }: Props) {
       if (category) params.set("category", category);
       if (urgency) params.set("urgency", urgency);
       if (mine) params.set("mine", "1");
+      if (clusterId) params.set("cluster_id", clusterId);
       if (appliedSearch) params.set("q", appliedSearch);
       if (nextCursor) params.set("cursor", nextCursor);
       return params.toString();
     },
-    [status, category, urgency, mine, appliedSearch],
+    [status, category, urgency, mine, clusterId, appliedSearch],
   );
+
+  /** Duplicate groups are a committee/admin view only. */
+  const loadGroups = useCallback(async () => {
+    if (!isStaff) return;
+    try {
+      const response = await api<{ items: GroupOption[] }>("/api/clusters");
+      setGroups(response.items);
+    } catch {
+      // A missing group list must never break the complaint list itself.
+    }
+  }, [isStaff]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -77,6 +104,10 @@ export default function ComplaintsList({ role, viewerId }: Props) {
     void load();
   }, [load]);
 
+  useEffect(() => {
+    void loadGroups();
+  }, [loadGroups]);
+
   async function loadMore() {
     if (!cursor) return;
     setLoadingMore(true);
@@ -93,7 +124,10 @@ export default function ComplaintsList({ role, viewerId }: Props) {
     }
   }
 
-  const hasFilters = Boolean(status || category || urgency || mine || appliedSearch);
+  const activeGroup = groups.find((group) => group.id === clusterId);
+  const hasFilters = Boolean(
+    status || category || urgency || mine || appliedSearch || clusterId,
+  );
 
   return (
     <div className="stack">
@@ -203,10 +237,50 @@ export default function ComplaintsList({ role, viewerId }: Props) {
             setMine(false);
             setSearch("");
             setAppliedSearch("");
+            setClusterId("");
           }}
         >
           Clear filters
         </button>
+      ) : null}
+
+      {isStaff && groups.length > 0 ? (
+        <div className="stack-sm">
+          <span className="tiny dim">
+            Duplicate groups — the same issue reported by several flats
+          </span>
+          <div className="row wrap" role="group" aria-label="Duplicate group">
+            <button
+              type="button"
+              className="chip"
+              aria-pressed={clusterId === ""}
+              onClick={() => setClusterId("")}
+            >
+              All complaints
+            </button>
+            {groups.map((group) => (
+              <button
+                key={group.id}
+                type="button"
+                className="chip"
+                aria-pressed={clusterId === group.id}
+                onClick={() => setClusterId(group.id)}
+                title={`${group.count} complaint(s), ${group.open_count} open`}
+              >
+                {CATEGORY_ICONS[group.category]}{" "}
+                {group.title || CATEGORY_LABELS[group.category]}
+                <span className="badge">×{group.open_count} open</span>
+              </button>
+            ))}
+          </div>
+          {activeGroup ? (
+            <p className="muted tiny" role="status">
+              Showing only “
+              {activeGroup.title || CATEGORY_LABELS[activeGroup.category]}” —{" "}
+              {activeGroup.open_count} open of {activeGroup.count} reported.
+            </p>
+          ) : null}
+        </div>
       ) : null}
 
       {error ? (
@@ -237,7 +311,11 @@ export default function ComplaintsList({ role, viewerId }: Props) {
               complaint={complaint}
               role={role}
               viewerId={viewerId}
-              onChanged={() => void load()}
+              onChanged={() => {
+                void load();
+                void loadGroups();
+              }}
+              onShowCluster={isStaff ? setClusterId : undefined}
             />
           ))}
         </div>

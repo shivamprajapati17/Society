@@ -107,10 +107,13 @@ export async function POST(request: Request) {
       reporter_label: row.sender || null,
       flat_no: row.flat_no,
       source: "import" as const,
+      // Must match the preview hash exactly (society + sender + date + text),
+      // otherwise a re-import would look new in the preview and then be
+      // silently skipped by the unique index.
       source_hash: sourceHash(
         profile.society_id,
         row.sender,
-        "",
+        row.ts ?? "",
         row.text,
       ),
       raw_text: row.text,

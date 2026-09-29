@@ -74,6 +74,7 @@ export default function ImportView() {
         sender: row.sender,
         flat_no: row.flat_no,
         text: row.text,
+        ts: row.ts,
       }));
 
     if (payloadRows.length === 0) {

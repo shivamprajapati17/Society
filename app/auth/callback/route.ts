@@ -27,6 +27,10 @@ export async function GET(request: Request) {
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase.auth.exchangeCodeForSession(code);
   if (error || !data.user) {
+    // Log the error class and code only — never the code, tokens or email.
+    console.error(
+      `[auth] exchange failed: ${error?.name ?? "no_user"} / ${error?.code ?? "-"} / ${error?.status ?? "-"}`,
+    );
     return redirect(request, "/login?error=exchange_failed");
   }
 

@@ -60,6 +60,10 @@ const ImportRow = z.object({
   sender: z.string().trim().max(60),
   flat_no: z.string().trim().max(10).nullable(),
   text: cleanString(3, 1000),
+  // Forwarded from the preview so the dedupe hash (society + sender + date +
+  // text) is identical on both sides. Optional: plain pasted lines have no
+  // timestamp.
+  ts: z.string().trim().max(40).nullable().optional(),
 });
 
 export const ImportPreview = z
@@ -80,6 +84,42 @@ export const ImportRequest = z.discriminatedUnion("mode", [
   ImportPreview,
   ImportCommit,
 ]);
+
+export const CreateNotice = z
+  .object({
+    title: cleanString(3, 160),
+    body: z.string().trim().max(4000).optional(),
+    pinned: z.boolean().optional(),
+  })
+  .strict();
+
+export const UpdateNotice = z
+  .object({
+    title: cleanString(3, 160).optional(),
+    body: z.string().trim().max(4000).nullable().optional(),
+    pinned: z.boolean().optional(),
+  })
+  .strict()
+  .refine((value) => Object.keys(value).length > 0, "Nothing to update");
+
+export const CreateEvent = z
+  .object({
+    title: cleanString(3, 160),
+    description: z.string().trim().max(4000).optional(),
+    starts_at: z.string().datetime({ offset: true }),
+    venue: z.string().trim().max(160).optional(),
+  })
+  .strict();
+
+export const UpdateEvent = z
+  .object({
+    title: cleanString(3, 160).optional(),
+    description: z.string().trim().max(4000).nullable().optional(),
+    starts_at: z.string().datetime({ offset: true }).optional(),
+    venue: z.string().trim().max(160).nullable().optional(),
+  })
+  .strict()
+  .refine((value) => Object.keys(value).length > 0, "Nothing to update");
 
 export const CreateComment = z
   .object({

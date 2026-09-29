@@ -25,6 +25,8 @@ interface Props {
   role: Role;
   viewerId: string;
   onChanged?: () => void;
+  /** When supplied, the grouped badge filters the list to that cluster. */
+  onShowCluster?: (clusterId: string) => void;
 }
 
 const POLL_INTERVAL_MS = 2000;
@@ -36,6 +38,7 @@ export default function ComplaintCard({
   role,
   viewerId,
   onChanged,
+  onShowCluster,
 }: Props) {
   const [complaint, setComplaint] = useState<ComplaintView>(initial);
   const [busy, setBusy] = useState(false);
@@ -130,10 +133,23 @@ export default function ComplaintCard({
       <div className="row wrap">
         <UrgencyPill urgency={complaint.urgency} />
         <StatusPill status={complaint.status} />
-        {complaint.cluster_count > 1 ? (
-          <span className="badge">
-            {CATEGORY_ICONS[complaint.category]} ×{complaint.cluster_count} flats
-          </span>
+        {complaint.cluster_count > 1 && complaint.cluster_id ? (
+          onShowCluster ? (
+            <button
+              type="button"
+              className="badge badge-action"
+              title="Show only this duplicate group"
+              onClick={() => onShowCluster(complaint.cluster_id as string)}
+            >
+              {CATEGORY_ICONS[complaint.category]} ×{complaint.cluster_count} in
+              this group
+            </button>
+          ) : (
+            <span className="badge">
+              {CATEGORY_ICONS[complaint.category]} ×{complaint.cluster_count}{" "}
+              flats
+            </span>
+          )
         ) : null}
         {isStaff && complaint.needs_review ? (
           <span className="badge badge-review">AI unsure</span>
