@@ -328,11 +328,13 @@ describe.skipIf(!enabled)("live deployment: authenticated API surface", () => {
   });
 
   it("creates a complaint and triages it with NVIDIA NIM", async () => {
+    // The run stamp keeps this text distinct: the create route answers 200 with
+    // the earlier complaint when the same text repeats inside 10 minutes.
     const created = await call("/api/complaints", {
       method: "POST",
-      body: JSON.stringify({ text: "lift me koi fasa hai!! B wing" }),
+      body: JSON.stringify({ text: `lift me koi fasa hai!! B wing [probe ${RUN}]` }),
     });
-    expect(created.status).toBe(201);
+    expect(created.status, JSON.stringify(created.body)).toBe(201);
     complaintId = created.body.complaint.id;
     createdComplaints.add(complaintId);
 
@@ -390,8 +392,8 @@ describe.skipIf(!enabled)("live deployment: authenticated API surface", () => {
 describe.skipIf(!enabled)("live deployment: chat import and dedupe", () => {
   it("parses a WhatsApp export and de-duplicates a re-import", async () => {
     const block = [
-      `12/03/24, 9:15 pm - Ramesh A-302: पानी नहीं आ रहा 2 din se [probe ${RUN}]`,
-      `12/03/24, 9:16 pm - Sunita A-101: Water supply band hai since morning [probe ${RUN}]`,
+      `12/03/24, 9:15 pm - Ramesh A-302: पानी नहीं आ रहा 2 din se [imp ${RUN}]`,
+      `12/03/24, 9:16 pm - Sunita A-101: Water supply band hai since morning [imp ${RUN}]`,
       "12/03/24, 9:17 pm - Guard: <Media omitted>",
     ].join("\n");
 
@@ -405,7 +407,7 @@ describe.skipIf(!enabled)("live deployment: chat import and dedupe", () => {
 
     // The preview must not have written anything.
     const beforeCommit = await call(
-      `/api/complaints?q=${encodeURIComponent(`probe ${RUN}`)}`,
+      `/api/complaints?q=${encodeURIComponent(`imp ${RUN}`)}`,
     );
     expect(beforeCommit.body.items).toHaveLength(0);
 
