@@ -248,6 +248,7 @@ Open <http://localhost:3000>. Then:
 | `npm test` | Run the Vitest suite once |
 | `npm run test:e2e` | Full end-to-end run against a real deployment (needs `SUPABASE_SERVICE_KEY` + `SUPABASE_ANON_KEY`; skipped otherwise) |
 | `npm run check:triage` | Send the 8 sample complaints from `07` to NIM and assert the triage |
+| `npm run check:layout` | Drive your installed Chrome over the DevTools protocol and assert no horizontal overflow at 360 / 390 / 768 / 1024 / 1440 |
 | `npm run local:setup` | Boot a local Supabase stack and point `.env.local` at it |
 
 ---

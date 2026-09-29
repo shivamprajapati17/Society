@@ -2058,7 +2058,8 @@ pre.sql {
   }
 }
 
-@media (max-width: 767px) {
+/* Seven links plus the brand and the login pill stop fitting before 1024px. */
+@media (max-width: 1023px) {
   .site-links {
     display: none;
   }
@@ -2070,7 +2071,10 @@ pre.sql {
   .site-sheet {
     display: flex;
   }
+}
 
+@media (max-width: 767px) {
+  /* The sheet carries the CTA at this size. */
   .site-login {
     display: none;
   }
