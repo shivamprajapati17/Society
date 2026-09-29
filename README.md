@@ -471,6 +471,10 @@ function logs. Pick a model your account can serve and set `NVIDIA_MODEL`.
 
 ---
 
+## Participant Info 
+- **Name:** Shivam Prajapati 
+- **College ID:** SLRTCE (First Year) cricledge8292@gmail.com 
+- **Day:** Day 1 (29th) 
 ## License
 
 MIT.
