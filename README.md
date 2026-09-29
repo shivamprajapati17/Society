@@ -100,6 +100,8 @@ npm install
 
 ### 3. Create the database
 
+**Option A — dashboard (fastest).**
+
 1. Open your Supabase project → **SQL Editor**.
 2. Paste the entire contents of [`supabase/migrations/001_init.sql`](./supabase/migrations/001_init.sql)
    and click **Run**. This creates the enums, tables, indexes, triggers and RLS policies.
@@ -109,6 +111,19 @@ npm install
    > which requires the `supabase_realtime` publication that exists on every
    > Supabase project. If you are running against a plain Postgres instance,
    > drop that final line.
+
+**Option B — Supabase CLI.** `supabase/config.toml` is committed, so you can
+push the migration straight to the linked project:
+
+```bash
+supabase link --project-ref <your-project-ref>
+supabase db push          # applies supabase/migrations/*.sql
+```
+
+`supabase start` also gives you a full local stack (Postgres, Auth, Studio) with
+`supabase/migrations` and `supabase/seed.sql` applied automatically — set
+`NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321` and put the local `anon` key it
+prints into `.env.local` to develop entirely offline.
 
 ### 4. Create the first admin
 
