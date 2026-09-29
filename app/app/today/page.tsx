@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 
 import TodayView from "@/components/TodayView";
 import { getSessionProfile } from "@/lib/auth";
+import { isTriageConfigured } from "@/lib/env";
 
 export const dynamic = "force-dynamic";
 
@@ -9,5 +10,11 @@ export default async function TodayPage() {
   const profile = await getSessionProfile();
   if (!profile) redirect("/login?error=no_invite");
 
-  return <TodayView role={profile.role} viewerId={profile.id} />;
+  return (
+    <TodayView
+      role={profile.role}
+      viewerId={profile.id}
+      aiEnabled={isTriageConfigured()}
+    />
+  );
 }

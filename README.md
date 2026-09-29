@@ -42,7 +42,7 @@ The full specification lives in the numbered markdown files at the repo root:
 
 - **Next.js 15** (App Router) + **TypeScript** (strict, no `any`)
 - **Supabase** — Postgres, Auth, Row Level Security
-- **Anthropic Claude Haiku** (`claude-haiku-4-5-20251001`) with forced tool-use for structured triage output
+- **NVIDIA NIM** (`moonshotai/kimi-k3`, OpenAI-compatible chat completions) with a forced tool call for structured triage output. No Anthropic dependency.
 - **zod** for every request body and query param
 - **three.js** for the procedural landing-page shader
 - **Resend** for the optional digest email
@@ -50,6 +50,33 @@ The full specification lives in the numbered markdown files at the repo root:
 - **Vitest** for unit tests
 
 Node **≥ 22.12** is required.
+
+### Deviations from the spec
+
+The numbered documents are the original requirements and are kept as written.
+The implementation departs from them in four places, deliberately:
+
+1. **AI provider.** `02-TRD.md` specifies `@anthropic-ai/sdk` with
+   `claude-haiku-4-5-20251001` as a fixed choice. This build uses **NVIDIA NIM**
+   instead (OpenAI-compatible `POST /chat/completions` with a forced tool call),
+   because the deployment is configured with a NIM key. There is no Anthropic
+   dependency in `package.json`. The triage contract is unchanged: same system
+   prompt, same enum-constrained fields, same zod validation, same rule-based
+   fallback.
+2. **Auto-close schedule.** `02-TRD.md` asks for `0 * * * *` (hourly). Vercel's
+   Hobby plan rejects any cron that runs more than once a day, which failed the
+   build, so it runs daily at 08:30 IST. Change `vercel.json` back on Pro.
+3. **The Fastshot source document was not supplied.** `03-UI-UX.md` says to copy
+   tokens, shaders and motion from it verbatim. Absent that file, the design
+   system in `app/globals.css` and the procedural shader in
+   `components/ShaderBackground.tsx` were rebuilt to match the tokens, surface
+   treatments and motion names the document does describe, rather than
+   transcribed. Treat them as an implementation of the described look, not a
+   pixel-exact port.
+4. **Fonts** are the latin subsets of Inter and Pixelify Sans, fetched from
+   Google Fonts and self-hosted in `public/media` (the `assets.json` script
+   referenced by `03-UI-UX.md` was not available). Hashes and licences are
+   recorded in `public/media/LICENSES.txt`.
 
 ---
 
@@ -59,7 +86,7 @@ Node **≥ 22.12** is required.
 
 - Node.js 22.12 or newer (`node -v`)
 - A free [Supabase](https://supabase.com) project
-- Optional: an [Anthropic API key](https://console.anthropic.com) for real AI triage.
+- Optional: a [NVIDIA NIM API key](https://build.nvidia.com) (starts with `nvapi-`) for real AI triage.
   **Without it the app still works** — it falls back to keyword-based triage and
   flags every result for human review.
 
@@ -103,7 +130,9 @@ Then fill it in:
 | `NEXT_PUBLIC_SUPABASE_URL` | yes | Supabase → Project Settings → API → Project URL |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | yes | Supabase → Project Settings → API → `anon` `public` key |
 | `SUPABASE_SERVICE_ROLE_KEY` | yes | Supabase → Project Settings → API → `service_role` key. **Server only — never prefix this with `NEXT_PUBLIC_`.** |
-| `ANTHROPIC_API_KEY` | optional | console.anthropic.com. Without it, triage falls back to rules. |
+| `NVIDIA_API_KEY` | optional | [build.nvidia.com](https://build.nvidia.com) — starts with `nvapi-`. Without it, triage falls back to keyword rules and every complaint is flagged for review. |
+| `NVIDIA_MODEL` | optional | Defaults to `moonshotai/kimi-k3`. Any tool-calling model your NIM account can actually serve. |
+| `NVIDIA_BASE_URL` | optional | Defaults to `https://integrate.api.nvidia.com/v1`. |
 | `RESEND_API_KEY` | optional | resend.com. Without it, no digest or invite emails are sent (invite links are still returned in the UI). |
 | `DIGEST_FROM` | optional | A verified Resend sender, e.g. `digest@yourdomain.com` |
 | `CRON_SECRET` | yes in prod | Any random string of 32+ characters. Guards `/api/cron/*`. |
@@ -241,11 +270,11 @@ Every endpoint, payload and status transition is documented in
 
 ## Security notes
 
-- The service-role key and the Anthropic key are **server-only** and are never
+- The service-role key and the NIM API key are **server-only** and are never
   referenced in the client bundle.
   Verify any time with:
   ```bash
-  grep -R "SERVICE_ROLE\|ANTHROPIC_API_KEY" .next/static
+  grep -R "SERVICE_ROLE\|NVIDIA_API_KEY" .next/static
   ```
   It must print nothing.
 - Row Level Security is enabled on every table and there are **no** insert,
@@ -258,11 +287,43 @@ Every endpoint, payload and status transition is documented in
   anything.
 - Rate limits live in the `rate_limits` table: complaints 20/h, imports 5/h,
   retriage 5/h, comments 60/h, invites 20/h per admin.
-- Rotate `CRON_SECRET`, the service-role key and the Anthropic key if any of
-  them are ever exposed.
+- Rotate `CRON_SECRET`, the service-role key and the NIM key if any of them are
+  ever exposed.
 
 See [`06-SECURITY.md`](./06-SECURITY.md) for the full threat model and
 pre-launch checklist.
+
+---
+
+## Verify it works
+
+```bash
+npm run typecheck    # strict TS, no `any`
+npm run lint         # eslint must be clean
+npm test             # 36 unit tests: SLA math, chat parsing, triage rules, schemas
+npm run build        # production build
+```
+
+Client-bundle secret check (must print nothing):
+
+```bash
+npm run build && grep -R "SERVICE_ROLE\|NVIDIA_API_KEY" .next/static
+```
+
+Against a running deployment:
+
+```bash
+BASE=https://societymatter.vercel.app
+curl -s -o /dev/null -w "landing   %{http_code}\n" $BASE/
+curl -s -o /dev/null -w "login     %{http_code}\n" $BASE/login
+curl -s -o /dev/null -w "cron 401  %{http_code}\n" $BASE/api/cron/digest
+curl -sI $BASE/ | grep -i "content-security-policy\|strict-transport"
+```
+
+End-to-end, with a real Supabase project: sign in with a magic link, paste the
+sample block from **Import**, and confirm the lift complaint lands as *Critical*,
+the two water messages cluster together, the greeting is *low* with an
+*AI unsure* chip, and re-importing creates nothing.
 
 ---
 
@@ -281,9 +342,14 @@ The token was already used or is older than 7 days. Create a new invite from the
 **Members** page.
 
 **Complaints stay "AI unsure"**
-Either `ANTHROPIC_API_KEY` is unset (the rule-based fallback always flags for
+Either `NVIDIA_API_KEY` is unset (the rule-based fallback always flags for
 review), or the model returned a confidence below 0.6. Committee members can fix
 the category and urgency inline — the flag clears on override.
+
+**Triage silently falls back to keywords**
+The default NIM model is stable, but model availability is per-account. If the
+key cannot serve `moonshotai/kimi-k3` you will see `[triage] nim http 404` in the
+function logs. Pick a model your account can serve and set `NVIDIA_MODEL`.
 
 **Cron returns 401**
 `CRON_SECRET` is unset or does not match. Redeploy after adding it.

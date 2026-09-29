@@ -10,6 +10,8 @@ import type { ComplaintView, Role, TodayResponse } from "@/lib/types";
 interface Props {
   role: Role;
   viewerId: string;
+  /** False when no NIM key is set and triage is running on rules alone. */
+  aiEnabled: boolean;
 }
 
 interface Section {
@@ -19,7 +21,7 @@ interface Section {
   items: ComplaintView[];
 }
 
-export default function TodayView({ role, viewerId }: Props) {
+export default function TodayView({ role, viewerId, aiEnabled }: Props) {
   const [data, setData] = useState<TodayResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -121,6 +123,14 @@ export default function TodayView({ role, viewerId }: Props) {
           </div>
         ) : null}
       </div>
+
+      {!aiEnabled ? (
+        <p className="banner" role="status" style={{ marginBottom: 14 }}>
+          AI triage is off — no AI key is configured on the server, so
+          complaints are sorted by keyword and every one is flagged for review.
+          See the README for setup.
+        </p>
+      ) : null}
 
       {total === 0 ? (
         <div className="glass empty">

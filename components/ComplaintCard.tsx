@@ -28,7 +28,8 @@ interface Props {
 }
 
 const POLL_INTERVAL_MS = 2000;
-const POLL_TIMEOUT_MS = 15000;
+// NIM triage runs in the background; poll long enough to cover a slow model.
+const POLL_TIMEOUT_MS = 25000;
 
 export default function ComplaintCard({
   complaint: initial,

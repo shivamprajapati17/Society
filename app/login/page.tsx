@@ -65,11 +65,9 @@ export default async function LoginPage({
                 sign-in is disabled.
               </p>
               <p className="banner">
-                Add <code>NEXT_PUBLIC_SUPABASE_URL</code>,{" "}
-                <code>NEXT_PUBLIC_SUPABASE_ANON_KEY</code> and{" "}
-                <code>SUPABASE_SERVICE_ROLE_KEY</code> in Vercel → Settings →
-                Environment Variables, then redeploy. See the README for the
-                one-time database setup.
+                The Supabase environment variables are missing. Add them in
+                Vercel → Settings → Environment Variables, then redeploy. See
+                the README for the one-time database setup.
               </p>
             </div>
           )}

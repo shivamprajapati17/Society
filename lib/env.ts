@@ -21,12 +21,33 @@ export function isAdminConfigured(): boolean {
   return Boolean(publicEnv.supabaseUrl && process.env.SUPABASE_SERVICE_ROLE_KEY);
 }
 
+/** True when AI triage can run (otherwise the rule-based fallback is used). */
+export function isTriageConfigured(): boolean {
+  return Boolean(nvidiaKey());
+}
+
 export function serviceRoleKey(): string | undefined {
   return process.env.SUPABASE_SERVICE_ROLE_KEY || undefined;
 }
 
-export function anthropicKey(): string | undefined {
-  return process.env.ANTHROPIC_API_KEY || undefined;
+/** NVIDIA NIM API key (server only). */
+export function nvidiaKey(): string | undefined {
+  return process.env.NVIDIA_API_KEY || process.env.NIM_API_KEY || undefined;
+}
+
+/**
+ * Model used for triage. Verified against the sample complaints in
+ * 07-IMPLEMENTATION-PLAN.md before being set as the default.
+ */
+export function nvidiaModel(): string {
+  return process.env.NVIDIA_MODEL || "moonshotai/kimi-k3";
+}
+
+/** NIM is OpenAI-compatible, so the base URL is configurable per account. */
+export function nvidiaBaseUrl(): string {
+  return (
+    process.env.NVIDIA_BASE_URL || "https://integrate.api.nvidia.com/v1"
+  ).replace(/\/+$/, "");
 }
 
 export function resendKey(): string | undefined {

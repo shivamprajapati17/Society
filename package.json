@@ -11,10 +11,10 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "check:triage": "node scripts/check-triage.mjs"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.65.0",
     "@supabase/ssr": "^0.5.2",
     "@supabase/supabase-js": "^2.58.0",
     "next": "^15.5.4",
