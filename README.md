@@ -228,10 +228,14 @@ Every endpoint, payload and status transition is documented in
    | Path | Schedule | Purpose |
    |---|---|---|
    | `/api/cron/digest` | `30 2 * * *` (08:00 IST) | Emails the committee a digest of critical + overdue items |
-   | `/api/cron/autoclose` | `0 * * * *` | Closes complaints resolved more than 3 days ago |
+   | `/api/cron/autoclose` | `0 3 * * *` (08:30 IST) | Closes complaints resolved more than 3 days ago |
 
    Both require `Authorization: Bearer ${CRON_SECRET}`; Vercel sends this
    automatically. Add `?dry=1` to either to preview without writing.
+
+   > **Note:** the auto-close job runs daily rather than hourly because the
+   > Vercel Hobby plan only allows one run per cron per day. On a Pro plan you
+   > can change the schedule in `vercel.json` back to `0 * * * *`.
 
 ---
 
